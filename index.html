@@ -13,6 +13,7 @@
     body {
       font-family: 'Inter', sans-serif;
       background-color: #fdfcf8; /* Warm paper-like background */
+      background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
     }
     .serif {
       font-family: 'Crimson Pro', serif;
@@ -21,9 +22,26 @@
       background: linear-gradient(145deg, #ffffff, #f4f1ea);
       box-shadow: 10px 10px 20px #e8e5de, -10px -10px 20px #ffffff;
     }
+    .book-shadow {
+      box-shadow: 
+        20px 20px 60px #d9d6ce,
+        -20px -20px 60px #ffffff,
+        inset 5px 0 10px rgba(0,0,0,0.05);
+    }
     /* Gentle transitions */
-    .fade-enter { opacity: 0; transform: translateY(10px); }
-    .fade-enter-active { opacity: 1; transform: translateY(0); transition: all 500ms ease-out; }
+    .animate-fade-in {
+      animation: fadeIn 1s ease-out forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-turn-exit {
+      animation: pageTurn 0.8s ease-in-out forwards;
+    }
+    @keyframes pageTurn {
+      to { transform: rotateY(-10deg) scale(1.05); opacity: 0; }
+    }
   </style>
 <script type="importmap">
 {
@@ -35,8 +53,10 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body class="text-stone-800">
   <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>

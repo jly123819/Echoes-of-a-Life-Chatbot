@@ -12,11 +12,17 @@ export enum Visibility {
   LEGACY = 'Legacy'
 }
 
+export enum ArchiveType {
+  INDIVIDUAL = 'Individual',
+  FAMILY = 'Family'
+}
+
 export interface TimelineEvent {
   id: string;
   event: string;
   timeRange: string;
   phase: LifePhase;
+  recordedAt: number;
   evidenceSessions: string[];
   description: string;
   confidence: number;
@@ -27,6 +33,7 @@ export interface LifeWisdom {
   id: string;
   belief: string;
   explanation: string;
+  recordedAt: number;
   evidenceSessions: string[];
   confidence: number;
   visibility: Visibility;
@@ -37,14 +44,20 @@ export interface MemorySession {
   timestamp: number;
   theme: string;
   transcript: string;
+  polishedTranscript?: string;
+  audioData?: string; // Base64 simulated storage
+  mediaUrl?: string; // For local save
+  mediaType?: 'audio' | 'upload';
   detectedLanguages?: string[];
-  distilledStory?: string;
   status: 'active' | 'completed';
 }
 
 export interface PersonProfile {
   id: string;
   displayName: string;
+  ownerName: string;
+  archiveType: ArchiveType;
+  members: string[];
   password?: string;
   sessions: MemorySession[];
   timeline: TimelineEvent[];
@@ -56,4 +69,27 @@ export interface LifeMemoryStore {
   people: { [id: string]: PersonProfile };
 }
 
-export type Step = 'intro' | 'identity_select' | 'identity_init' | 'identity_password' | 'theme' | 'listen' | 'reflect' | 'distill' | 'timeline' | 'legacy';
+export type Step = 
+  | 'cover' 
+  | 'intro' 
+  | 'identity_select' 
+  | 'identity_init' 
+  | 'identity_type'
+  | 'identity_members'
+  | 'identity_setup_password' 
+  | 'identity_password' 
+  | 'theme' 
+  | 'listen' 
+  | 'reflect' 
+  | 'distill' 
+  | 'archive_choice'
+  | 'approval_workflow'
+  | 'local_archive_ask'
+  | 'conflict_resolution'
+  | 'time_collection'
+  | 'timeline' 
+  | 'wisdom'
+  | 'legacy' 
+  | 'search';
+
+export type Language = 'en' | 'es' | 'zh';

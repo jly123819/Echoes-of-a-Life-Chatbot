@@ -1,5 +1,5 @@
 {
-  "name": "Echoes of a Life: Life Story & Wisdom Agent",
+  "name": "VoicesPreserved: Life Story & Wisdom Agent",
   "description": "A gentle, long-term system for listening to older adults, preserving their life stories, and distilling lived wisdom for future generations.",
   "requestFramePermissions": [
     "microphone"

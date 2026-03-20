@@ -15,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children, title, subtitle, onHomeClick 
       <header className="mb-12 flex justify-between items-end border-b border-stone-200 pb-8">
         <div>
           <h1 className="serif text-4xl font-light text-stone-900 tracking-tight" onClick={onHomeClick} style={{ cursor: onHomeClick ? 'pointer' : 'default' }}>
-            {title || "Echoes of a Life"}
+            {title || "VoicesPreserved"}
           </h1>
           {/* Using div instead of p to avoid hydration errors/invalid nesting when subtitle contains block elements like buttons */}
           {subtitle && <div className="mt-2 text-stone-500 font-light">{subtitle}</div>}
