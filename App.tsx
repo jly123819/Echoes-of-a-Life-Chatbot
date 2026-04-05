@@ -19,7 +19,8 @@ import {
   distillStory, 
   extractLifeStructure, 
   analyzeNarrativeDepth,
-  processMultimedia
+  processMultimedia,
+  extractDirectWisdom
 } from './services/geminiService';
 
 const STORAGE_KEY = 'life_echoes_store_v1';
@@ -60,12 +61,39 @@ const App: React.FC = () => {
   
   const [loadingStep, setLoadingStep] = useState(0);
   const [loadingTime, setLoadingTime] = useState(0);
+  const [loadingContext, setLoadingContext] = useState<'story' | 'wisdom'>('story');
   const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'needs_edit'>('pending');
   
   const getLoadingMessage = () => {
-    if (loadingStep === 1) return `[ 正在深度解析您的回忆... 已沉淀 ${loadingTime} 秒 ⏳ ]`;
-    if (loadingStep === 2) return `[ 正在检索历史档案并进行逻辑比对... 已运行 ${loadingTime} 秒 🔍 ]`;
-    return currentT.weaving;
+    if (loadingContext === 'wisdom') {
+      if (uiLang === 'zh') {
+        if (loadingStep === 1) return `[ 正在深度解析您的智慧... 已沉淀 ${loadingTime} 秒 ⏳ ]`;
+        if (loadingStep === 2) return `[ 正在提炼人生哲理... 已运行 ${loadingTime} 秒 💡 ]`;
+        return "我正在精心提取您的智慧...";
+      } else if (uiLang === 'es') {
+        if (loadingStep === 1) return `[ Analizando su sabiduría... ${loadingTime}s ⏳ ]`;
+        if (loadingStep === 2) return `[ Extrayendo filosofía de vida... ${loadingTime}s 💡 ]`;
+        return "Estoy extrayendo cuidadosamente su sabiduría...";
+      } else {
+        if (loadingStep === 1) return `[ Deeply analyzing your wisdom... ${loadingTime}s ⏳ ]`;
+        if (loadingStep === 2) return `[ Extracting life philosophy... ${loadingTime}s 💡 ]`;
+        return "I am carefully extracting your wisdom...";
+      }
+    } else {
+      if (uiLang === 'zh') {
+        if (loadingStep === 1) return `[ 正在深度解析您的回忆... 已沉淀 ${loadingTime} 秒 ⏳ ]`;
+        if (loadingStep === 2) return `[ 正在检索历史档案并进行逻辑比对... 已运行 ${loadingTime} 秒 🔍 ]`;
+        return currentT.weaving;
+      } else if (uiLang === 'es') {
+        if (loadingStep === 1) return `[ Analizando sus recuerdos... ${loadingTime}s ⏳ ]`;
+        if (loadingStep === 2) return `[ Comparando con archivos históricos... ${loadingTime}s 🔍 ]`;
+        return currentT.weaving;
+      } else {
+        if (loadingStep === 1) return `[ Deeply analyzing your memories... ${loadingTime}s ⏳ ]`;
+        if (loadingStep === 2) return `[ Retrieving historical archives and performing logical comparison... ${loadingTime}s 🔍 ]`;
+        return currentT.weaving;
+      }
+    }
   };
 
   const [store, setStore] = useState<LifeMemoryStore>(() => {
@@ -94,6 +122,7 @@ const App: React.FC = () => {
       archive: "View Archive",
       switch: "Switch Archive",
       wisdom: "Life Wisdom",
+      recordWisdom: "Record a Wisdom",
       search: "Search Memories",
       export: "Export Archive",
       archivingFor: "Active Archive:",
@@ -172,6 +201,7 @@ const App: React.FC = () => {
       archive: "查看档案",
       switch: "切换档案",
       wisdom: "人生智慧",
+      recordWisdom: "直接记录智慧",
       search: "搜索记忆",
       export: "导出档案",
       archivingFor: "当前档案：",
@@ -249,6 +279,7 @@ const App: React.FC = () => {
       archive: "Ver archivo",
       switch: "Cambiar archivo",
       wisdom: "Sabiduría de vida",
+      recordWisdom: "Grabar una Sabiduría",
       search: "Buscar memorias",
       export: "Exportar archivo",
       archivingFor: "Archivo activo:",
@@ -310,7 +341,8 @@ const App: React.FC = () => {
     setStep('theme');
   };
 
-  const runLoadingSequence = async (callback: () => Promise<void>) => {
+  const runLoadingSequence = async (callback: () => Promise<void>, context: 'story' | 'wisdom' = 'story') => {
+    setLoadingContext(context);
     setLoading(true);
     setLoadingStep(1);
     setLoadingTime(0);
@@ -466,6 +498,14 @@ const App: React.FC = () => {
         status: 'completed'
       };
 
+      saveToAzure({
+        type: 'memory_session',
+        session: newSession,
+        events: newEvents,
+        wisdoms: newWisdoms,
+        theme: currentTheme
+      });
+
       return {
         ...prev,
         people: {
@@ -533,6 +573,97 @@ const App: React.FC = () => {
     });
   };
 
+  const handleFinishWisdom = async (transcript: string, mediaBlob?: Blob, mediaType?: 'audio' | 'upload') => {
+    if (!transcript.trim()) {
+      setStep('wisdom');
+      return;
+    }
+    
+    setStep('wisdom'); // Go back to wisdom view to show loading state there
+    await runLoadingSequence(async () => {
+      try {
+        const result = await extractDirectWisdom(transcript);
+        const newWisdom: LifeWisdom = {
+          id: `wis_${Date.now()}`,
+          belief: result.belief,
+          explanation: result.explanation,
+          recordedAt: Date.now(),
+          evidenceSessions: [],
+          confidence: 1,
+          visibility: Visibility.FAMILY
+        };
+
+        saveToAzure({
+          type: 'direct_wisdom',
+          wisdom: newWisdom,
+          transcript
+        });
+        
+        setStore(prev => {
+          const pId = prev.activePersonId;
+          if (!pId) return prev;
+          const person = prev.people[pId];
+          return {
+            ...prev,
+            people: {
+              ...prev.people,
+              [pId]: {
+                ...person,
+                wisdoms: [newWisdom, ...(person.wisdoms || [])]
+              }
+            }
+          };
+        });
+      } catch (e) {
+        console.error("Failed to extract wisdom:", e);
+        // Fallback if extraction fails
+        const newWisdom: LifeWisdom = {
+          id: `wis_${Date.now()}`,
+          belief: transcript.slice(0, 50) + (transcript.length > 50 ? '...' : ''),
+          explanation: transcript,
+          recordedAt: Date.now(),
+          evidenceSessions: [],
+          confidence: 1,
+          visibility: Visibility.FAMILY
+        };
+        setStore(prev => {
+          const pId = prev.activePersonId;
+          if (!pId) return prev;
+          const person = prev.people[pId];
+          return {
+            ...prev,
+            people: {
+              ...prev.people,
+              [pId]: {
+                ...person,
+                wisdoms: [newWisdom, ...(person.wisdoms || [])]
+              }
+            }
+          };
+        });
+      }
+    }, 'wisdom');
+  };
+
+  const saveToAzure = async (record: any) => {
+    try {
+      const response = await fetch('/api/save-record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...record,
+          activeArchive: activePerson?.displayName || 'Unknown',
+          language: uiLang,
+          timestamp: new Date().toISOString()
+        })
+      });
+      const data = await response.json();
+      if (!data.success) console.error("Azure Storage Error:", data.error);
+    } catch (e) {
+      console.error("Failed to save to Azure:", e);
+    }
+  };
+
   const handleIdentitySelect = (personId: string) => {
     const person = store.people[personId];
     if (person.password) { 
@@ -558,6 +689,12 @@ const App: React.FC = () => {
       timeline: [], 
       wisdoms: []
     };
+
+    saveToAzure({
+      type: 'archive_created',
+      archive: newArchive
+    });
+
     setStore(prev => ({
       ...prev, 
       activePersonId: newId, 
@@ -893,32 +1030,44 @@ const App: React.FC = () => {
             </div>
             <div className="flex space-x-4">
               <button onClick={() => setStep('search')} className="px-6 py-2 border border-stone-200 text-stone-400 rounded-full text-xs uppercase tracking-widest font-bold hover:text-stone-900 transition-colors">🔍</button>
+              <button onClick={() => setStep('listen_wisdom')} className="px-6 py-2 bg-stone-100 text-stone-900 rounded-full text-xs uppercase tracking-widest font-bold hover:bg-stone-200 transition-colors">+ {currentT.recordWisdom}</button>
               <button onClick={initializeNewSession} className="px-6 py-2 bg-stone-900 text-white rounded-full text-xs uppercase tracking-widest font-bold">+ {currentT.record}</button>
             </div>
           </div>
           <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {(activePerson.wisdoms || []).map((w, i) => (
-                <div key={w.id || i} className="wisdom-card p-10 rounded-[3rem] space-y-6 animate-fade-in flex flex-col justify-between min-h-[300px]">
-                  <div className="space-y-6">
-                    <div className="text-stone-200 text-4xl serif">“</div>
-                    <h4 className="serif text-3xl leading-tight text-stone-800 -mt-8">{w.belief}</h4>
-                    <p className="text-sm text-stone-500 leading-relaxed italic">{w.explanation}</p>
-                  </div>
-                  <div className="pt-6 border-t border-stone-100/50">
-                    <div className="text-[10px] text-stone-300 uppercase tracking-widest font-bold">{currentT.earnedAt}: {new Date(w.recordedAt).toLocaleDateString()}</div>
-                  </div>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <div className="w-12 h-12 border-4 border-stone-100 border-t-stone-900 rounded-full animate-spin"></div>
+                <div className="serif italic text-2xl text-stone-400">
+                  {getLoadingMessage()}
                 </div>
-              ))}
-              {(activePerson.wisdoms || []).length === 0 && (
-                <div className="col-span-full py-20 text-center border-2 border-dashed border-stone-100 rounded-[3rem]">
-                  <p className="serif text-2xl text-stone-300 italic">No wisdom has been harvested yet. Share a life lesson with me?</p>
-                </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {(activePerson.wisdoms || []).map((w, i) => (
+                  <div key={w.id || i} className="wisdom-card p-10 rounded-[3rem] space-y-6 animate-fade-in flex flex-col justify-between min-h-[300px]">
+                    <div className="space-y-6">
+                      <div className="text-stone-200 text-4xl serif">“</div>
+                      <h4 className="serif text-3xl leading-tight text-stone-800 -mt-8">{w.belief}</h4>
+                      <p className="text-sm text-stone-500 leading-relaxed italic">{w.explanation}</p>
+                    </div>
+                    <div className="pt-6 border-t border-stone-100/50">
+                      <div className="text-[10px] text-stone-300 uppercase tracking-widest font-bold">{currentT.earnedAt}: {new Date(w.recordedAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                ))}
+                {(activePerson.wisdoms || []).length === 0 && (
+                  <div className="col-span-full py-20 text-center border-2 border-dashed border-stone-100 rounded-[3rem]">
+                    <p className="serif text-2xl text-stone-300 italic">No wisdom has been harvested yet. Share a life lesson with me?</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {step === 'listen_wisdom' && <ListeningModule theme={currentT.recordWisdom} onFinish={handleFinishWisdom} lang={uiLang} />}
 
       {step === 'search' && activePerson && (
         <div className="max-w-3xl mx-auto space-y-12 animate-fade-in">

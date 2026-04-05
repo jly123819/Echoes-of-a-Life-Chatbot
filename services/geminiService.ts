@@ -208,3 +208,32 @@ export const extractLifeStructure = async (transcript: string, context: string) 
     return JSON.parse(response.text);
   });
 };
+
+export const extractDirectWisdom = async (transcript: string) => {
+  return executeWithRetry(async () => {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.1-pro-preview',
+      contents: `The user is directly recording a life wisdom, belief, or lesson.
+      Transcript: "${transcript}"
+      
+      Extract this into a structured wisdom format.
+      Return JSON with:
+      - title: A short, philosophical title.
+      - belief: A one-sentence summary of the core insight.
+      - explanation: A brief explanation or context based on the transcript.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            belief: { type: Type.STRING },
+            explanation: { type: Type.STRING }
+          },
+          required: ["title", "belief", "explanation"]
+        }
+      }
+    });
+    return JSON.parse(response.text);
+  });
+};

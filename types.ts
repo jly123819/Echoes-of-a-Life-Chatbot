@@ -80,6 +80,7 @@ export type Step =
   | 'identity_password' 
   | 'theme' 
   | 'listen' 
+  | 'listen_wisdom'
   | 'reflect' 
   | 'distill' 
   | 'archive_choice'
